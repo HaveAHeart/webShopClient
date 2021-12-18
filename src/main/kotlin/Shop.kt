@@ -3,6 +3,7 @@ import io.ktor.client.features.*
 import io.ktor.client.request.*
 import io.ktor.client.request.forms.*
 import io.ktor.http.*
+import io.ktor.network.sockets.*
 import model.Item
 
 suspend fun interact(client: HttpClient, token: String) {
@@ -12,13 +13,17 @@ suspend fun interact(client: HttpClient, token: String) {
 
         when (input[0]) {
             "list" -> {
-                val request = client.get<List<Item>>("$baseUrl/item"){
-                    header(HttpHeaders.Authorization, "bearer $token")
-                    contentType(ContentType.Application.Json)
+                try {
+                    val request = client.get<List<Item>>("$baseUrl/item") {
+                        header(HttpHeaders.Authorization, "bearer $token")
+                        contentType(ContentType.Application.Json)
+                    }
+                    for (item in request) {
+                        println("${item.name} : ${item.amount} available for ${item.price} each.")
+                    }
                 }
-                for (item in request) {
-                    println("${item.name} : ${item.amount} available for ${item.price} each.")
-                }
+                catch (e: ResponseException) { e.response }
+                catch (e: ConnectTimeoutException) { println("Server is not responding. Try again later.") }
             }
             "addPos" -> {
                 try {
@@ -36,6 +41,8 @@ suspend fun interact(client: HttpClient, token: String) {
                     printArgFormatMsg()
                     continue
                 }
+                catch (e: ResponseException) { e.response }
+                catch (e: ConnectTimeoutException) { println("Server is not responding. Try again later.") }
             }
             "buy" -> {
                 try {
@@ -54,10 +61,8 @@ suspend fun interact(client: HttpClient, token: String) {
                     printArgFormatMsg()
                     continue
                 }
-                catch (e: ClientRequestException) {
-                    println(e.message.split("Text: ")[1])
-                    continue
-                }
+                catch (e: ResponseException) { e.response }
+                catch (e: ConnectTimeoutException) { println("Server is not responding. Try again later.") }
             }
             "add" -> {
                 try {
@@ -76,10 +81,8 @@ suspend fun interact(client: HttpClient, token: String) {
                     printArgFormatMsg()
                     continue
                 }
-                catch (e: ClientRequestException) {
-                    println(e.message.split("Text: ")[1])
-                    continue
-                }
+                catch (e: ResponseException) { e.response }
+                catch (e: ConnectTimeoutException) { println("Server is not responding. Try again later.") }
             }
             "help" -> { printHelpMsg() }
             "exit" -> {

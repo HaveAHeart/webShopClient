@@ -3,6 +3,7 @@ import io.ktor.client.features.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import io.ktor.network.sockets.*
 import model.AuthData
 import model.AuthSuccess
 
@@ -33,12 +34,18 @@ suspend fun authorize(client: HttpClient): String {
         //and after successful registration you still need to log in to grab the token
         if (mode == "r") {
             println("Great! trying to register you...")
-            val response: HttpResponse = client.post("$baseUrl/auth/register") {
-                contentType(ContentType.Application.Json)
-                body = authData
+            try {
+                val response: HttpResponse = client.post("$baseUrl/auth/register") {
+                    contentType(ContentType.Application.Json)
+                    body = authData
+                }
+                println(response.readText())
+                if (response.status == HttpStatusCode.BadRequest) {
+                    continue
+                }
             }
-            println(response.readText())
-            if (response.status == HttpStatusCode.BadRequest) { continue }
+            catch (e: ResponseException) { e.response }
+            catch (e: ConnectTimeoutException) { println("Server is not responding. Try again later.") }
         }
 
         //mode == "l"
@@ -55,10 +62,13 @@ suspend fun authorize(client: HttpClient): String {
                 token = response.jwtToken
                 println("Great! you are logged in.")
                 return token
-            } catch (e: ClientRequestException) {
+            }
+            catch (e: ClientRequestException) {
                 println(e.localizedMessage)
                 continue
             }
+            catch (e: ResponseException) { e.response }
+            catch (e: ConnectTimeoutException) { println("Server is not responding. Try again later.") }
         }
     }
 }
